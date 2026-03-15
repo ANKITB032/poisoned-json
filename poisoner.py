@@ -28,7 +28,6 @@ VERCEL_URL = "https://poisoned-json.vercel.app"
 
 # ISOLATED: Only targets the victim_lab folder.
 # poisoner.py will ONLY read/write inside this single directory.
-# Nothing else in C:/CyberSecurity is touched.
 TARGET_DIRS = [
     "/mnt/c/CyberSecurity/Poisoned-JSON-Project/victim_lab"
 ]
