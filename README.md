@@ -10,6 +10,23 @@ A deception-based **honeytoken system** for detecting unauthorized access to cre
 
 ---
 
+## 🎯 Real-World Detection
+
+Within hours of deployment, the system autonomously detected a real automated credential scanner:
+
+| Field | Value |
+|-------|-------|
+| **IP** | `3.224.234.70` |
+| **Location** | Ashburn, Virginia, United States |
+| **ISP** | Amazon Technologies Inc. |
+| **Org** | AWS EC2 (us-east-1) |
+| **User-Agent** | `Mozilla/5.0 (compatible)` |
+| **Time** | 2026-03-16 05:33:14 UTC |
+
+> An automated AWS-hosted bot probed the honeytoken endpoint within hours of the repository going public — confirming the system works against real-world credential scanners with zero manual intervention.
+
+---
+
 ## 📖 What Is A Honeytoken?
 
 A honeytoken is a fake credential or resource deliberately planted in a system. It has no legitimate use — so any interaction with it is an immediate indicator of compromise (IoC). This technique is used by security teams at major companies to detect insider threats, credential theft, and automated scanners.
