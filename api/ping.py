@@ -13,10 +13,6 @@ from datetime import datetime, timezone
 
 
 def get_geolocation(ip):
-    """
-    Lookup IP geolocation using ip-api.com (free, no API key needed).
-    Returns a dict with city, country, ISP etc.
-    """
     try:
         url = f"http://ip-api.com/json/{ip}?fields=status,country,regionName,city,isp,org,query"
         req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
@@ -25,27 +21,23 @@ def get_geolocation(ip):
             if data.get("status") == "success":
                 return data
     except Exception as e:
-        print(f"DEBUG geo lookup failed: {e}")
+        print(f"ERROR geo lookup failed: {e}")
     return {}
 
 
 def send_discord_alert(token_id, svc, ip, user_agent):
-    """Send a Discord alert with geolocation via webhook."""
-
     webhook_url = os.environ.get("DISCORD_WEBHOOK_URL", "").strip()
-    print(f"DEBUG webhook_url prefix: '{webhook_url[:30]}'")
 
     if not webhook_url:
-        print("ERROR: DISCORD_WEBHOOK_URL is empty or not set.")
+        print("ERROR: DISCORD_WEBHOOK_URL is not set.")
         return
 
-    # Get geolocation data
-    geo = get_geolocation(ip)
-    city        = geo.get("city", "Unknown")
-    region      = geo.get("regionName", "Unknown")
-    country     = geo.get("country", "Unknown")
-    isp         = geo.get("isp", "Unknown")
-    org         = geo.get("org", "Unknown")
+    geo     = get_geolocation(ip)
+    city    = geo.get("city", "Unknown")
+    region  = geo.get("regionName", "Unknown")
+    country = geo.get("country", "Unknown")
+    isp     = geo.get("isp", "Unknown")
+    org     = geo.get("org", "Unknown")
 
     timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
 
@@ -53,25 +45,20 @@ def send_discord_alert(token_id, svc, ip, user_agent):
         "content": (
             f"🚨 **Honeytoken Triggered!**\n"
             f"**Token:** `{token_id}`\n"
-            f"**Service:** `{svc}`\n"
-            f"\n"
+            f"**Service:** `{svc}`\n\n"
             f"🌐 **IP:** `{ip}`\n"
             f"📍 **Location:** {city}, {region}, {country}\n"
             f"🏢 **ISP:** {isp}\n"
-            f"🏛️ **Org:** {org}\n"
-            f"\n"
+            f"🏛️ **Org:** {org}\n\n"
             f"💻 **User-Agent:** `{user_agent[:150]}`\n"
             f"🕐 **Time:** {timestamp}"
         )
     }
 
     data = json.dumps(payload).encode("utf-8")
-
-    # ?wait=true + browser User-Agent bypasses Cloudflare blocking Vercel IPs
-    url = webhook_url + "?wait=true"
-    req = urllib.request.Request(
-        url,
-        data=data,
+    url  = webhook_url + "?wait=true"
+    req  = urllib.request.Request(
+        url, data=data,
         headers={
             "Content-Type": "application/json",
             "User-Agent": "Mozilla/5.0 (compatible; HoneytokenBot/1.0)"
@@ -81,28 +68,26 @@ def send_discord_alert(token_id, svc, ip, user_agent):
 
     try:
         with urllib.request.urlopen(req, timeout=10) as resp:
-            print(f"DEBUG Discord response status: {resp.status}")
+            pass
     except urllib.error.HTTPError as e:
-        body = e.read().decode("utf-8")
-        print(f"ERROR HTTPError {e.code}: {e.reason} | body: {body}")
+        print(f"ERROR HTTPError {e.code}: {e.reason} | {e.read().decode()}")
     except urllib.error.URLError as e:
         print(f"ERROR URLError: {e.reason}")
     except Exception as e:
-        print(f"ERROR unexpected: {type(e).__name__}: {e}")
+        print(f"ERROR: {type(e).__name__}: {e}")
 
 
 class handler(BaseHTTPRequestHandler):
 
     def do_GET(self):
-        self._handle_request("GET")
+        self._handle_request()
 
     def do_POST(self):
-        self._handle_request("POST")
+        self._handle_request()
 
-    def _handle_request(self, method):
-        parsed = urlparse(self.path)
-        params = parse_qs(parsed.query)
-
+    def _handle_request(self):
+        parsed   = urlparse(self.path)
+        params   = parse_qs(parsed.query)
         token_id = params.get("token", ["UNKNOWN"])[0]
         svc      = params.get("svc",   ["unknown"])[0]
 
@@ -114,7 +99,6 @@ class handler(BaseHTTPRequestHandler):
         ip = ip.split(",")[0].strip()
 
         user_agent = self.headers.get("user-agent", "unknown")
-        print(f"DEBUG hit: token={token_id} svc={svc} ip={ip}")
 
         send_discord_alert(token_id, svc, ip, user_agent)
 
