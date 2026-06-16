@@ -21,13 +21,12 @@ def get_geolocation(ip):
             if data.get("status") == "success":
                 return data
     except Exception as e:
-        print(f"ERROR geo lookup failed: {e}")
+        print(f"ERROR geo lookup: {e}")
     return {}
 
 
 def send_discord_alert(token_id, svc, ip, user_agent):
     webhook_url = os.environ.get("DISCORD_WEBHOOK_URL", "").strip()
-
     if not webhook_url:
         print("ERROR: DISCORD_WEBHOOK_URL is not set.")
         return
@@ -38,21 +37,33 @@ def send_discord_alert(token_id, svc, ip, user_agent):
     country = geo.get("country", "Unknown")
     isp     = geo.get("isp", "Unknown")
     org     = geo.get("org", "Unknown")
-
     timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
 
+    # Colour per service
+    colours = {
+        "firebase": 0xFFA000,
+        "aws":      0xFF9900,
+        "stripe":   0x6772E5,
+    }
+
     payload = {
-        "content": (
-            f"🚨 **Honeytoken Triggered!**\n"
-            f"**Token:** `{token_id}`\n"
-            f"**Service:** `{svc}`\n\n"
-            f"🌐 **IP:** `{ip}`\n"
-            f"📍 **Location:** {city}, {region}, {country}\n"
-            f"🏢 **ISP:** {isp}\n"
-            f"🏛️ **Org:** {org}\n\n"
-            f"💻 **User-Agent:** `{user_agent[:150]}`\n"
-            f"🕐 **Time:** {timestamp}"
-        )
+        "username": "HoneyToken Alert",
+        "embeds": [{
+            "title": f"🚨 Canary Triggered — {token_id}",
+            "description": f"A **{svc.upper()}** honeytoken was just accessed.",
+            "color": colours.get(svc, 0xFF0000),
+            "fields": [
+                {"name": "🪤 Token ID",   "value": f"`{token_id}`", "inline": True},
+                {"name": "🔧 Service",    "value": f"`{svc}`",      "inline": True},
+                {"name": "🌐 IP Address", "value": f"`{ip}`",       "inline": True},
+                {"name": "📍 Location",   "value": f"{city}, {region}, {country}", "inline": False},
+                {"name": "🏢 ISP",        "value": isp,             "inline": True},
+                {"name": "🏛️ Org",        "value": org,             "inline": True},
+                {"name": "💻 User-Agent", "value": f"`{user_agent[:200]}`", "inline": False},
+                {"name": "🕐 Time",       "value": timestamp,       "inline": False},
+            ],
+            "footer": {"text": "The Poisoned JSON — Honeytoken System"}
+        }]
     }
 
     data = json.dumps(payload).encode("utf-8")
@@ -99,7 +110,6 @@ class handler(BaseHTTPRequestHandler):
         ip = ip.split(",")[0].strip()
 
         user_agent = self.headers.get("user-agent", "unknown")
-
         send_discord_alert(token_id, svc, ip, user_agent)
 
         self.send_response(403)
